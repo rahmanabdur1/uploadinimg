@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sequential Image Upload Form</title>
+    <style>
+        .class{
+            margin: 120px auto auto auto;
+            max-width: 500px;
+            display: flex;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            flex-direction: column;
+        }
+
+        .input {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .url-display {
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        .image-container {
+            margin-top: 20px;
+            position: relative;
+        }
+
+        .image-container .loader {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border: 8px solid #f3f3f3;
+            border-top: 8px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            display: none;
+        }
+
+        .uploaded-image {
+            max-width: 40%;
+            height: 60px;
+            margin-bottom: 10px;
+            opacity: 0;
+            animation: fadeIn 0.5s forwards;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .div1 {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        span {
+            color: red;
+            font-size: 12px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .loader {
+            border: 8px solid #f3f3f3;
+            border-top: 8px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="class">
+        <h2>Option One</h2>
+        <div class="input" id="imageUploadForm">
+            <!-- Images will be dynamically added here -->
+        </div>
+    </div>
+
+    <script>
+        const imageHostkey = '5625ece30e7095c633896cd5ee3759ff'; // Replace with your actual API key
+        const filesToUpload = [];
+
+        function handleFileChange(index) {
+            const fileInput = document.getElementById(`image${index}`);
+            const selectedFilesSpan = document.getElementById(`selectedFiles${index}`);
+
+            if (fileInput.files.length > 1) {
+                alert('Please select only one file.');
+                fileInput.value = ''; // Clear the file input
+                return;
+            }
+
+            filesToUpload[index - 1] = fileInput.files;
+            selectedFilesSpan.textContent = `Selected File: ${filesToUpload[index - 1][0].name}`;
+        }
+
+        async function uploadImage(index) {
+            const demoInput = document.getElementById(`demo${index}`);
+            const urlDisplay = document.getElementById(`urlDisplay${index}`);
+            const imageContainer = document.getElementById(`imageContainer${index}`);
+            const file = filesToUpload[index - 1] ? filesToUpload[index - 1][0] : null;
+            const uploadButton = document.getElementById(`uploadButton${index}`);
+
+            if (!demoInput || !urlDisplay || !imageContainer || !file || !uploadButton) {
+                console.error(`Demo input, URL display element, image container, file, or upload button not found for index ${index}.`);
+                return;
+            }
+
+            demoInput.value = ''; // Clear previous value
+            urlDisplay.innerHTML = ''; // Clear previous URLs
+            imageContainer.innerHTML = ''; // Clear previous images
+
+            // Display loader in imageContainer
+            const loader = document.createElement('div');
+            loader.classList.add('loader');
+            imageContainer.appendChild(loader);
+
+            // Display loading spinner in uploadButton
+            uploadButton.innerHTML = '<div class="loader"></div>Loading...';
+
+            if (file) {
+                await uploadImageFile(file, index, demoInput, urlDisplay, imageContainer, uploadButton, loader);
+            }
+        }
+
+        async function uploadImageFile(file, index, demoInput, urlDisplay, imageContainer, uploadButton, loader) {
+            const formData = new FormData();
+            formData.append('image', file);
+
+            try {
+                const response = await fetch(`https://api.imgbb.com/1/upload?expiration=600&key=${imageHostkey}`, {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                const data = await response.json();
+                console.log('Image uploaded successfully:', data);
+
+                demoInput.value = data.data.url; // Set the demo input value
+                urlDisplay.innerHTML = `<strong>URL:</strong> ${data.data.url}`; // Display the URL in the div
+
+                // Display the uploaded image with fade-in animation
+                const imgElement = document.createElement('img');
+                imgElement.src = data.data.url;
+                imgElement.classList.add('uploaded-image');
+                imageContainer.appendChild(imgElement);
+
+                // Remove loader from imageContainer
+                loader.remove();
+
+                // Reset the button text
+                uploadButton.innerHTML = 'Upload Image';
+            } catch (error) {
+                console.error('Error uploading image:', error);
+
+                // Remove loader from imageContainer
+                loader.remove();
+
+                // Reset the button text in case of an error
+                uploadButton.innerHTML = 'Upload Image';
+            }
+        }
+
+        // Dynamically generate image upload sections
+        const formContainer = document.getElementById('imageUploadForm');
+        for (let i = 1; i <= 5; i++) {
+            const div1 = document.createElement('div');
+            div1.classList.add('div1');
+
+            div1.innerHTML = `
+                <input type="file" id="image${i}" accept="image/*" style="display: none;" onchange="handleFileChange(${i})">
+                <label for="image${i}" style="cursor: pointer;">Choose Image (${i})</label>
+                <span id="selectedFiles${i}"></span>
+                <button type="button" onclick="uploadImage(${i})" id="uploadButton${i}">Upload Image</button>
+                <input type="text" id="demo${i}" class="demo">
+                <div class="url-display hidden" id="urlDisplay${i}"></div>
+                <div class="imgs">
+                    <div class="image-container" id="imageContainer${i}"></div>
+                </div>
+            `;
+
+            formContainer.appendChild(div1);
+        }
+    </script>
+</body>
+
+</html>
+
